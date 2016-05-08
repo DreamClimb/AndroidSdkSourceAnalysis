@@ -1,12 +1,12 @@
 # CoordinatorLayout 源码分析
 
- `CoordinatorLayout`有一些很有意思的特性，设置anchor、NestedScroll配合Toolbar/TabLayout的显隐or伸缩、Fab的移动等。今天咱就来一探究竟！
+`CoordinatorLayout`有一些很有意思的特性，设置anchor、NestedScroll配合Toolbar/TabLayout的显隐or伸缩、Fab的移动等。今天咱就来一探究竟！
 
- ## 1. 从LayoutParam开始
+## 1. 从LayoutParam开始
 
  `CoordinatorLayout.LayoutParam`中有一些不太一样的属性和元素，在此先进行介绍。
 
- ### 1.1 特殊属性
+### 1.1 特殊属性
 
  | 属性 | 对应xml属性|用途 |
  |:--:| :--: | :--: |
@@ -19,7 +19,7 @@
 
  `keyline`是一个非常奇怪的属性，我在看源码时才第一次看到到这玩意，网上的资料也非常之少。分析下来，就是如果设置了keyline，那么gravity就会被无视，直接放置在对应的水平位置keyline上。CoordinatorLayout里面也没有其他的特性是根据keyline实现的，个人认为没卵用，本文对它的分析基本都会略过。
 
- ### 1.2 依赖关系
+### 1.2 依赖关系
 
  假设此时有两个View: **A** 和**B**，那么有两种情况会导致依赖关系：
 
@@ -51,7 +51,7 @@
 
  >注意，在建立`mDependencySortedChildren`并排序完成之后（在measure的第一步处理完成），每次对子View的遍历**都是通过它进行顺序遍历**，保证了被依赖的View最先被处理。
 
- ### 1.3 Behavior
+### 1.3 Behavior
 
  在`CoordinatorLayout`中定义了`Behavior`类，它是用来辅助layout的工具。如果一个CoordinatorLayout的直接子View设置了`Behavior`（或者通过类注解`@DefaultBehavior`指定`Behavior`），则该Behavior会储存在该View的`LayoutParam`中。
 
@@ -59,7 +59,7 @@
 
  在Behavior中有几类功能，我们一一进行介绍：
 
- #### 1.3.1 触摸响应类
+#### 1.3.1 触摸响应类
 
  `Behavior`中有两个函数：`onInterceptTouchEvent`、 `onTouchEvent`。在CoordinatorLayout每次触发对应事件的时候会选择一个最适合的子View的Behavior执行对应函数。我们来看一下CoordinatorLayout是怎么分发和处理Touch事件的：
 
@@ -140,7 +140,7 @@
  }
  ```
 
- #### 1.3.2 依赖关系类
+#### 1.3.2 依赖关系类
 
  这部分比较简单，就俩函数：
    `layoutDependsOn`：返回`true`则表示对另一个View有依赖关系；
@@ -170,11 +170,11 @@
  至于`onDependentViewRemoved`，是在初始化的时候就会调用`ViewGroup.setOnHierarchyChangeListener()`方法设置一个`OnHierarchyChangeListener`，这样每次add和remove子View的时候就会接收到回调，同时对相应依赖关系的View进行处理。
 
 
- #### 1.3.3 布局类
+#### 1.3.3 布局类
 
   `onMeasureChild`&`onLayoutChild`：如果重写了该方法并返回`true`，则CoordinatorLayout会使用Behavior对这个子View进行measure/layout。具体的可以见下面的**Measure&Layout**
 
- #### 1.3.4 嵌套滑动类
+#### 1.3.4 嵌套滑动类
 
   CoordinatorLayout实现了`NestedScrollingParent`，当CoordinatorLayout内有一个支持NestedScroll的子View时，它的嵌套滑动事件通过`NestedScrollingParent`的回调分发到各直接子View的Behavior处理。虽然`Behavior`类没有实现`NestedScrollingParent`，但是实际上它的方法都有。有兴趣的同学可以去看看这个类，我们这里重点讲CoordinatorLayout的分发过程。
 
@@ -205,13 +205,13 @@
 
  非常简单吧，就遍历一下直接子View，每个都调一下对应的回调方法，只要有任何一个子View的behavior消耗了这个事件，就算消耗了这个事件。
 
- ##2. Measure&Layout
+##2. Measure&Layout
 
  我们知道，ViewGroup要把子View准确地放置到屏幕上都是要走`onMeasure`  `onLayout`的，那么我们看看`CoordinatorLayout`在这里干了什么。
 
  在看懂时请确保你明白`measure/layout`的意义以及基本用法，否则可能会导致身体不适=。=
 
- ### 2.1 Measure
+### 2.1 Measure
 
  最直接的就是看代码，如果不喜欢，可以跳过代码看总结。：
 
@@ -262,7 +262,7 @@
  }
  ```
 
- 总结下来，onMeasure干了这么几件事：
+总结下来，onMeasure干了这么几件事：
 
  1. 根据依赖关系对所有子View进行排序
  2. 保证OnPreDrawListener被添加
@@ -271,7 +271,7 @@
  	- 取子VIew最大的measure尺寸为已使用的measure尺寸。
  4. 更新本身的Measure尺寸。
 
- ### 2.2 Layout
+### 2.2 Layout
 
  在`onLayout`中，我们可以看到`CoordinatorLayout`会对每一个子View依照以下判断顺序进行layout：
 
@@ -283,7 +283,7 @@
 
  我们一一来看一下这些过程。
 
- #### 2.2.1 使用Behavior进行layout
+#### 2.2.1 使用Behavior进行layout
 
  默认的Behavior的`onLayoutChild`都是返回`false`的，那么我们看看`FloatingActionButton`的默认Behavior是怎么处理的吧：
 
@@ -314,7 +314,7 @@
 
  之后它会手动调用CoordinatorLayout自身的`onLayoutChild`方法进行layout，即上述判断的第二步，那我们继续往下看。
 
- #### 2.2.2 使用Anchor进行layout
+#### 2.2.2 使用Anchor进行layout
 
  如果View设置了anchor，那么都会调用`layoutWithAnchor`进行layout，代码与解释如下：
 
@@ -336,7 +336,7 @@
 
  这里用到的两个关键函数就是`getDescendantRect`与`getDesiredAnchoredChildRect`，它们的目的在我添加的注释中进行了解释，为保证文章的可读性就不再把代码放上来了，有兴趣的同学可以再自己去挖掘相应代码~~
 
- #### 2.2.3 直接layout
+#### 2.2.3 直接layout
 
  如果之前的都不符合，就会走到这一步，我们看看它是怎么layout的：
 
@@ -359,7 +359,7 @@
   }
  ```
 
- ##3 总结
+##3 总结
 
  CoordinatorLayout的特性总结下来就是两个方面：
 
